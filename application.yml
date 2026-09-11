@@ -1,4 +1,4 @@
 jwt:
   secret: "CHANGE_THIS_TO_A_LONG_RANDOM_SECRET_KEY_AT_LEAST_32_CHARACTERS"
-  access-token-expiration: 900000
-  refresh-token-expiration: 604800000
+  access-token-expiration: 7200000
+  refresh-token-expiration: 6048000000

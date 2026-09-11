@@ -16,121 +16,84 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-        private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-        @Bean
-        public SecurityFilterChain securityFilterChain(
-                        HttpSecurity http,
-                        AuthenticationProvider authenticationProvider) throws Exception {
+    @Bean
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            AuthenticationProvider authenticationProvider) throws Exception {
 
-                http
-                                // Disable CSRF because we are using JWT-based stateless authentication
-                                .csrf(csrf -> csrf.disable())
+        http
+                // CSRF - disabled for JWT based REST API
+                .csrf(csrf -> csrf.disable())
 
-                                // No server-side session
-                                .sessionManagement(session -> session.sessionCreationPolicy(
-                                                SessionCreationPolicy.STATELESS))
+                // Stateless session for JWT auth
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
 
-                                .authorizeHttpRequests(auth -> auth
+                // AUTHORIZATION RULES
+                .authorizeHttpRequests(auth -> auth
 
-                                                // =========================
-                                                // PUBLIC AUTH APIs
-                                                // =========================
-                                                .requestMatchers("/api/auth/**")
-                                                .permitAll()
+                        // PUBLIC AUTH APIs
+                        .requestMatchers("/api/auth/**").permitAll()
 
-                                                // =========================
-                                                // CATEGORIES
-                                                // =========================
+                        // CATEGORIES
+                        .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/categories").hasRole("ADMIN")
 
-                                                .requestMatchers(
-                                                                HttpMethod.GET,
-                                                                "/api/categories/**")
-                                                .permitAll()
+                        // PRODUCTS
+                        .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/products").hasAnyRole("SELLER", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/products/**").hasAnyRole("SELLER", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/products/**").hasAnyRole("SELLER", "ADMIN")
 
-                                                .requestMatchers(
-                                                                HttpMethod.POST,
-                                                                "/api/categories")
-                                                .hasRole("ADMIN")
+                        // PRODUCT IMAGES
+                        .requestMatchers(HttpMethod.GET, "/api/products/*/images").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/products/*/images").hasAnyRole("SELLER", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/products/*/images/**").hasAnyRole("SELLER", "ADMIN")
 
-                                                // =========================
-                                                // PRODUCTS
-                                                // =========================
-                                                .requestMatchers(
-                                                                HttpMethod.GET,
-                                                                "/api/products/**")
-                                                .permitAll()
+                        // CART
+                        .requestMatchers("/api/cart/**").authenticated()
 
-                                                .requestMatchers(
-                                                                HttpMethod.POST,
-                                                                "/api/products")
-                                                .hasAnyRole("SELLER", "ADMIN")
+                        // ORDERS
+                        .requestMatchers("/api/orders/**").authenticated()
 
-                                                .requestMatchers(
-                                                                HttpMethod.PUT,
-                                                                "/api/products/**")
-                                                .hasAnyRole("SELLER", "ADMIN")
+                        // ADMIN
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                                                .requestMatchers(
-                                                                HttpMethod.DELETE,
-                                                                "/api/products/**")
-                                                .hasAnyRole("SELLER", "ADMIN")
+                        // DELIVERY REQUESTS / PARTNERS / QUOTES (must be declared before
+                        // /api/delivery/** below, otherwise the broader delivery matcher
+                        // will always match first)
+                        .requestMatchers("/api/delivery/requests/**").authenticated()
+                        .requestMatchers("/api/delivery/partners/**").authenticated()
+                        .requestMatchers("/api/delivery/quotes/**").authenticated()
+                        .requestMatchers("/api/delivery/assignments/**").authenticated()
 
-                                                // =========================
-                                                // ADMIN
-                                                // =========================
-                                                .requestMatchers("/api/admin/**")
-                                                .hasRole("ADMIN")
+                        // DELIVERY PARTNER
+                        .requestMatchers("/api/delivery/**").hasAnyRole("DELIVERY_PARTNER", "ADMIN")
 
-                                                // =========================
-                                                // SELLER
-                                                // =========================
-                                                .requestMatchers("/api/seller/**")
-                                                .hasAnyRole("SELLER", "ADMIN")
+                        // SERVICE PROVIDER
+                        .requestMatchers("/api/service-provider/**").hasAnyRole("SERVICE_PROVIDER", "ADMIN")
 
-                                                // =========================
-                                                // DELIVERY PARTNER
-                                                // =========================
-                                                .requestMatchers("/api/delivery/**")
-                                                .hasAnyRole("DELIVERY_PARTNER", "ADMIN")
+                        // BUSINESS
+                        .requestMatchers("/api/businesses/**").hasAnyRole("SELLER", "ADMIN")
 
-                                                // =========================
-                                                // SERVICE PROVIDER
-                                                // =========================
-                                                .requestMatchers("/api/service-provider/**")
-                                                .hasAnyRole("SERVICE_PROVIDER", "ADMIN")
+                        // USERS
+                        .requestMatchers("/api/users/**").hasAnyRole(
+                                "CUSTOMER", "SELLER", "DELIVERY_PARTNER", "SERVICE_PROVIDER", "ADMIN"
+                        )
 
-                                                // =========================
-                                                // BUSINESS
-                                                // =========================
-                                                .requestMatchers("/api/businesses/**")
-                                                .hasAnyRole("SELLER", "ADMIN")
+                        // EVERYTHING ELSE
+                        .anyRequest().authenticated()
+                )
 
-                                                // =========================
-                                                // USERS
-                                                // =========================
-                                                .requestMatchers("/api/users/**")
-                                                .hasAnyRole(
-                                                                "CUSTOMER",
-                                                                "SELLER",
-                                                                "DELIVERY_PARTNER",
-                                                                "SERVICE_PROVIDER",
-                                                                "ADMIN")
+                // AUTHENTICATION PROVIDER
+                .authenticationProvider(authenticationProvider)
 
-                                                // =========================
-                                                // EVERYTHING ELSE
-                                                // =========================
-                                                .anyRequest()
-                                                .authenticated())
+                // JWT FILTER
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
-                                // Authentication provider
-                                .authenticationProvider(authenticationProvider)
-
-                                // JWT filter before username/password authentication filter
-                                .addFilterBefore(
-                                                jwtAuthenticationFilter,
-                                                UsernamePasswordAuthenticationFilter.class);
-
-                return http.build();
-        }
+        return http.build();
+    }
 }
