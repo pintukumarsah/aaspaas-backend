@@ -1,24 +1,33 @@
 package com.aaspaas.aaspaas_backend.delivery.serviceimpl;
 
 import com.aaspaas.aaspaas_backend.delivery.service.DeliveryAssignmentService;
+
 import com.aaspaas.aaspaas_backend.delivery.dto.DeliveryAssignmentResponse;
+import com.aaspaas.aaspaas_backend.delivery.dto.DeliveryOtpResponse;
 import com.aaspaas.aaspaas_backend.delivery.entity.DeliveryAssignment;
+import com.aaspaas.aaspaas_backend.delivery.entity.DeliveryOtp;
 import com.aaspaas.aaspaas_backend.delivery.entity.DeliveryPartner;
 import com.aaspaas.aaspaas_backend.delivery.entity.DeliveryQuote;
 import com.aaspaas.aaspaas_backend.delivery.entity.DeliveryRequest;
 import com.aaspaas.aaspaas_backend.delivery.repository.DeliveryAssignmentRepository;
+import com.aaspaas.aaspaas_backend.delivery.repository.DeliveryOtpRepository;
 import com.aaspaas.aaspaas_backend.delivery.repository.DeliveryPartnerRepository;
 import com.aaspaas.aaspaas_backend.delivery.repository.DeliveryQuoteRepository;
 import com.aaspaas.aaspaas_backend.delivery.repository.DeliveryRequestRepository;
 import com.aaspaas.aaspaas_backend.user.entity.User;
 import com.aaspaas.aaspaas_backend.user.repository.UserRepository;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
@@ -33,32 +42,28 @@ public class DeliveryAssignmentServiceImpl
 
     private final DeliveryPartnerRepository partnerRepository;
 
+    private final DeliveryOtpRepository otpRepository;
+
     private final UserRepository userRepository;
 
 
     // =========================================================
-    // CUSTOMER ACCEPTS DELIVERY QUOTE
+    // 1. CUSTOMER ACCEPTS DELIVERY QUOTE
     // =========================================================
 
     @Override
     @Transactional
     public DeliveryAssignmentResponse acceptQuote(Long quoteId) {
 
-        String phone = SecurityContextHolder
-                .getContext()
-                .getAuthentication()
-                .getName();
+        String phone = getLoggedInPhone();
 
-        // Find authenticated customer
         User customer = findUser(phone);
 
 
-        /*
-         * Lock the selected quote.
-         *
-         * This prevents two simultaneous requests
-         * from accepting the same quote.
-         */
+        // -----------------------------------------------------
+        // Lock selected quote
+        // -----------------------------------------------------
+
         DeliveryQuote quote =
                 quoteRepository.findByIdForUpdate(quoteId)
                         .orElseThrow(() ->
@@ -68,15 +73,16 @@ public class DeliveryAssignmentServiceImpl
                         );
 
 
-        /*
-         * Lock delivery request.
-         *
-         * This is important because one delivery request
-         * can have only one delivery partner.
-         */
+        // -----------------------------------------------------
+        // Lock delivery request
+        // -----------------------------------------------------
+
+        Long deliveryRequestId =
+                quote.getDeliveryRequest().getId();
+
         DeliveryRequest deliveryRequest =
                 requestRepository.findByIdForUpdate(
-                        quote.getDeliveryRequest().getId()
+                        deliveryRequestId
                 ).orElseThrow(() ->
                         new RuntimeException(
                                 "Delivery request not found"
@@ -84,14 +90,10 @@ public class DeliveryAssignmentServiceImpl
                 );
 
 
-        // =====================================================
-        // SECURITY CHECK
-        // =====================================================
+        // -----------------------------------------------------
+        // Security check
+        // -----------------------------------------------------
 
-        /*
-         * Only the customer who created the delivery request
-         * can accept the quote.
-         */
         if (!deliveryRequest.getCustomer()
                 .getId()
                 .equals(customer.getId())) {
@@ -102,9 +104,9 @@ public class DeliveryAssignmentServiceImpl
         }
 
 
-        // =====================================================
-        // REQUEST STATUS CHECK
-        // =====================================================
+        // -----------------------------------------------------
+        // Delivery request status
+        // -----------------------------------------------------
 
         if (!"OPEN".equals(deliveryRequest.getStatus())) {
 
@@ -114,9 +116,9 @@ public class DeliveryAssignmentServiceImpl
         }
 
 
-        // =====================================================
-        // QUOTE STATUS CHECK
-        // =====================================================
+        // -----------------------------------------------------
+        // Quote status
+        // -----------------------------------------------------
 
         if (!"PENDING".equals(quote.getStatus())) {
 
@@ -126,9 +128,9 @@ public class DeliveryAssignmentServiceImpl
         }
 
 
-        // =====================================================
-        // EXPIRY CHECK
-        // =====================================================
+        // -----------------------------------------------------
+        // Expiry check
+        // -----------------------------------------------------
 
         if (deliveryRequest.getExpiresAt() != null
                 && deliveryRequest.getExpiresAt()
@@ -140,9 +142,9 @@ public class DeliveryAssignmentServiceImpl
         }
 
 
-        // =====================================================
-        // CHECK EXISTING ASSIGNMENT
-        // =====================================================
+        // -----------------------------------------------------
+        // Check existing assignment
+        // -----------------------------------------------------
 
         if (assignmentRepository
                 .existsByDeliveryRequestId(
@@ -155,25 +157,26 @@ public class DeliveryAssignmentServiceImpl
         }
 
 
-        // =====================================================
-        // GET DELIVERY PARTNER
-        // =====================================================
+        // -----------------------------------------------------
+        // Get partner
+        // -----------------------------------------------------
 
-        DeliveryPartner partner = quote.getPartner();
+        DeliveryPartner partner =
+                quote.getPartner();
 
 
-        // =====================================================
-        // ACCEPT SELECTED QUOTE
-        // =====================================================
+        // -----------------------------------------------------
+        // Make selected quote ACCEPTED
+        // -----------------------------------------------------
 
         quote.setStatus("ACCEPTED");
 
         quoteRepository.save(quote);
 
 
-        // =====================================================
-        // REJECT OTHER QUOTES
-        // =====================================================
+        // -----------------------------------------------------
+        // Reject all other pending quotes
+        // -----------------------------------------------------
 
         List<DeliveryQuote> allQuotes =
                 quoteRepository
@@ -183,15 +186,9 @@ public class DeliveryAssignmentServiceImpl
 
         for (DeliveryQuote otherQuote : allQuotes) {
 
-            /*
-             * Do not reject the selected quote.
-             */
             if (!otherQuote.getId()
                     .equals(quote.getId())) {
 
-                /*
-                 * Only pending quotes should be rejected.
-                 */
                 if ("PENDING".equals(
                         otherQuote.getStatus())) {
 
@@ -203,9 +200,9 @@ public class DeliveryAssignmentServiceImpl
         quoteRepository.saveAll(allQuotes);
 
 
-        // =====================================================
-        // CREATE DELIVERY ASSIGNMENT
-        // =====================================================
+        // -----------------------------------------------------
+        // Create assignment
+        // -----------------------------------------------------
 
         DeliveryAssignment assignment =
                 DeliveryAssignment.builder()
@@ -224,52 +221,574 @@ public class DeliveryAssignmentServiceImpl
                 );
 
 
-        // =====================================================
-        // UPDATE DELIVERY REQUEST
-        // =====================================================
+        // -----------------------------------------------------
+        // Update delivery request
+        // -----------------------------------------------------
 
         deliveryRequest.setStatus("ASSIGNED");
 
         requestRepository.save(deliveryRequest);
 
 
-        // =====================================================
-        // PARTNER STATUS
-        // =====================================================
+        // -----------------------------------------------------
+        // Partner becomes BUSY
+        // -----------------------------------------------------
 
-        /*
-         * Partner is now busy because a delivery
-         * has been assigned.
-         */
         partner.setAvailabilityStatus("BUSY");
 
         partnerRepository.save(partner);
 
-
-        // =====================================================
-        // RETURN RESPONSE
-        // =====================================================
 
         return mapToResponse(assignment);
     }
 
 
     // =========================================================
-    // GET MY ASSIGNMENT - DELIVERY PARTNER
+    // 2. DELIVERY PARTNER ACCEPTS ASSIGNMENT
+    // =========================================================
+
+    @Override
+    @Transactional
+    public DeliveryAssignmentResponse acceptAssignment(
+            Long assignmentId) {
+
+        String phone = getLoggedInPhone();
+
+
+        // -----------------------------------------------------
+        // Find partner
+        // -----------------------------------------------------
+
+        DeliveryPartner partner =
+                partnerRepository
+                        .findByUserPhone(phone)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Delivery partner profile not found"
+                                )
+                        );
+
+
+        // -----------------------------------------------------
+        // Find assignment
+        // -----------------------------------------------------
+
+        DeliveryAssignment assignment =
+                assignmentRepository
+                        .findById(assignmentId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Delivery assignment not found"
+                                )
+                        );
+
+
+        // -----------------------------------------------------
+        // Verify assignment belongs to this partner
+        // -----------------------------------------------------
+
+        if (!assignment.getPartner()
+                .getId()
+                .equals(partner.getId())) {
+
+            throw new RuntimeException(
+                    "You are not assigned to this delivery"
+            );
+        }
+
+
+        // -----------------------------------------------------
+        // Status check
+        // -----------------------------------------------------
+
+        if (!"ASSIGNED".equals(
+                assignment.getStatus())) {
+
+            throw new RuntimeException(
+                    "Assignment cannot be accepted in current status"
+            );
+        }
+
+
+        // -----------------------------------------------------
+        // Accept assignment
+        // -----------------------------------------------------
+
+        assignment.setStatus("ACCEPTED");
+
+        assignment.setAcceptedAt(
+                OffsetDateTime.now()
+        );
+
+        assignment =
+                assignmentRepository.save(
+                        assignment
+                );
+
+
+        return mapToResponse(assignment);
+    }
+
+
+    // =========================================================
+    // 3. GENERATE PICKUP OTP
+    // =========================================================
+
+    @Override
+    @Transactional
+    public DeliveryOtpResponse generatePickupOtp(
+            Long assignmentId) {
+
+        DeliveryAssignment assignment =
+                assignmentRepository
+                        .findById(assignmentId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Delivery assignment not found"
+                                )
+                        );
+
+
+        // -----------------------------------------------------
+        // Status check
+        // -----------------------------------------------------
+
+        if (!"ACCEPTED".equals(
+                assignment.getStatus())) {
+
+            throw new RuntimeException(
+                    "Partner must accept assignment first"
+            );
+        }
+
+
+        // -----------------------------------------------------
+        // Generate OTP
+        // -----------------------------------------------------
+
+        String otp = generateOtp();
+
+
+        DeliveryOtp deliveryOtp =
+                DeliveryOtp.builder()
+                        .deliveryAssignment(assignment)
+                        .otpType("PICKUP")
+                        .otpHash(hashOtp(otp))
+                        .expiresAt(
+                                OffsetDateTime.now()
+                                        .plusMinutes(10)
+                        )
+                        .attemptCount(0)
+                        .build();
+
+
+        deliveryOtp =
+                otpRepository.save(
+                        deliveryOtp
+                );
+
+
+        return DeliveryOtpResponse.builder()
+                .assignmentId(assignmentId)
+                .otpType("PICKUP")
+                .otp(otp)
+                .expiresAt(
+                        deliveryOtp.getExpiresAt()
+                )
+                .build();
+    }
+
+
+    // =========================================================
+    // 4. VERIFY PICKUP OTP
+    // =========================================================
+
+    @Override
+    @Transactional
+    public DeliveryAssignmentResponse verifyPickupOtp(
+            Long assignmentId,
+            String otp) {
+
+        DeliveryAssignment assignment =
+                assignmentRepository
+                        .findById(assignmentId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Delivery assignment not found"
+                                )
+                        );
+
+
+        // -----------------------------------------------------
+        // Status check
+        // -----------------------------------------------------
+
+        if (!"ACCEPTED".equals(
+                assignment.getStatus())) {
+
+            throw new RuntimeException(
+                    "Pickup OTP cannot be verified now"
+            );
+        }
+
+
+        // -----------------------------------------------------
+        // Find latest active pickup OTP
+        // -----------------------------------------------------
+
+        DeliveryOtp deliveryOtp =
+                otpRepository
+                        .findTopByDeliveryAssignmentIdAndOtpTypeAndVerifiedAtIsNullOrderByCreatedAtDesc(
+                                assignmentId,
+                                "PICKUP"
+                        )
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Pickup OTP not found"
+                                )
+                        );
+
+
+        // -----------------------------------------------------
+        // Expiry check
+        // -----------------------------------------------------
+
+        if (deliveryOtp.getExpiresAt()
+                .isBefore(OffsetDateTime.now())) {
+
+            throw new RuntimeException(
+                    "Pickup OTP has expired"
+            );
+        }
+
+
+        // -----------------------------------------------------
+        // Attempt limit
+        // -----------------------------------------------------
+
+        if (deliveryOtp.getAttemptCount() >= 5) {
+
+            throw new RuntimeException(
+                    "Maximum OTP attempts exceeded"
+            );
+        }
+
+
+        // -----------------------------------------------------
+        // Null / blank OTP check
+        // -----------------------------------------------------
+
+        if (otp == null || otp.isBlank()) {
+
+            deliveryOtp.setAttemptCount(
+                    deliveryOtp.getAttemptCount() + 1
+            );
+
+            otpRepository.save(deliveryOtp);
+
+            throw new RuntimeException(
+                    "OTP is required"
+            );
+        }
+
+
+        // -----------------------------------------------------
+        // Verify OTP
+        // -----------------------------------------------------
+
+        if (!hashOtp(otp)
+                .equals(deliveryOtp.getOtpHash())) {
+
+            deliveryOtp.setAttemptCount(
+                    deliveryOtp.getAttemptCount() + 1
+            );
+
+            otpRepository.save(deliveryOtp);
+
+            throw new RuntimeException(
+                    "Invalid pickup OTP"
+            );
+        }
+
+
+        // -----------------------------------------------------
+        // Mark OTP verified
+        // -----------------------------------------------------
+
+        deliveryOtp.setVerifiedAt(
+                OffsetDateTime.now()
+        );
+
+        otpRepository.save(deliveryOtp);
+
+
+        // -----------------------------------------------------
+        // Update assignment
+        // -----------------------------------------------------
+
+        assignment.setStatus("PICKED_UP");
+
+        assignment.setPickedUpAt(
+                OffsetDateTime.now()
+        );
+
+        assignment =
+                assignmentRepository.save(
+                        assignment
+                );
+
+
+        return mapToResponse(assignment);
+    }
+
+
+    // =========================================================
+    // 5. GENERATE DELIVERY OTP
+    // =========================================================
+
+    @Override
+    @Transactional
+    public DeliveryOtpResponse generateDeliveryOtp(
+            Long assignmentId) {
+
+        DeliveryAssignment assignment =
+                assignmentRepository
+                        .findById(assignmentId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Delivery assignment not found"
+                                )
+                        );
+
+
+        // -----------------------------------------------------
+        // Item must already be picked up
+        // -----------------------------------------------------
+
+        if (!"PICKED_UP".equals(
+                assignment.getStatus())) {
+
+            throw new RuntimeException(
+                    "Item must be picked up first"
+            );
+        }
+
+
+        // -----------------------------------------------------
+        // Generate OTP
+        // -----------------------------------------------------
+
+        String otp = generateOtp();
+
+
+        DeliveryOtp deliveryOtp =
+                DeliveryOtp.builder()
+                        .deliveryAssignment(assignment)
+                        .otpType("DELIVERY")
+                        .otpHash(hashOtp(otp))
+                        .expiresAt(
+                                OffsetDateTime.now()
+                                        .plusMinutes(10)
+                        )
+                        .attemptCount(0)
+                        .build();
+
+
+        deliveryOtp =
+                otpRepository.save(
+                        deliveryOtp
+                );
+
+
+        return DeliveryOtpResponse.builder()
+                .assignmentId(assignmentId)
+                .otpType("DELIVERY")
+                .otp(otp)
+                .expiresAt(
+                        deliveryOtp.getExpiresAt()
+                )
+                .build();
+    }
+
+
+    // =========================================================
+    // 6. VERIFY DELIVERY OTP
+    // =========================================================
+
+    @Override
+    @Transactional
+    public DeliveryAssignmentResponse verifyDeliveryOtp(
+            Long assignmentId,
+            String otp) {
+
+        DeliveryAssignment assignment =
+                assignmentRepository
+                        .findById(assignmentId)
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Delivery assignment not found"
+                                )
+                        );
+
+
+        // -----------------------------------------------------
+        // Status check
+        // -----------------------------------------------------
+
+        if (!"PICKED_UP".equals(assignment.getStatus())
+        && !"OUT_FOR_DELIVERY".equals(
+                assignment.getStatus())) {
+
+            throw new RuntimeException(
+                    "Delivery OTP cannot be verified now"
+            );
+        }
+
+
+        // -----------------------------------------------------
+        // Find latest active delivery OTP
+        // -----------------------------------------------------
+
+        DeliveryOtp deliveryOtp =
+                otpRepository
+                        .findTopByDeliveryAssignmentIdAndOtpTypeAndVerifiedAtIsNullOrderByCreatedAtDesc(
+                                assignmentId,
+                                "DELIVERY"
+                        )
+                        .orElseThrow(() ->
+                                new RuntimeException(
+                                        "Delivery OTP not found"
+                                )
+                        );
+
+
+        // -----------------------------------------------------
+        // Expiry check
+        // -----------------------------------------------------
+
+        if (deliveryOtp.getExpiresAt()
+                .isBefore(OffsetDateTime.now())) {
+
+            throw new RuntimeException(
+                    "Delivery OTP has expired"
+            );
+        }
+
+
+        // -----------------------------------------------------
+        // Attempt limit
+        // -----------------------------------------------------
+
+        if (deliveryOtp.getAttemptCount() >= 5) {
+
+            throw new RuntimeException(
+                    "Maximum OTP attempts exceeded"
+            );
+        }
+
+
+        // -----------------------------------------------------
+        // Null / blank OTP check
+        // -----------------------------------------------------
+
+        if (otp == null || otp.isBlank()) {
+
+            deliveryOtp.setAttemptCount(
+                    deliveryOtp.getAttemptCount() + 1
+            );
+
+            otpRepository.save(deliveryOtp);
+
+            throw new RuntimeException(
+                    "OTP is required"
+            );
+        }
+
+
+        // -----------------------------------------------------
+        // Verify OTP
+        // -----------------------------------------------------
+
+        if (!hashOtp(otp)
+                .equals(deliveryOtp.getOtpHash())) {
+
+            deliveryOtp.setAttemptCount(
+                    deliveryOtp.getAttemptCount() + 1
+            );
+
+            otpRepository.save(deliveryOtp);
+
+            throw new RuntimeException(
+                    "Invalid delivery OTP"
+            );
+        }
+
+
+        // -----------------------------------------------------
+        // Mark OTP verified
+        // -----------------------------------------------------
+
+        deliveryOtp.setVerifiedAt(
+                OffsetDateTime.now()
+        );
+
+        otpRepository.save(deliveryOtp);
+
+
+        // -----------------------------------------------------
+        // Mark delivery as DELIVERED
+        // -----------------------------------------------------
+
+        assignment.setStatus("DELIVERED");
+
+        assignment.setDeliveredAt(
+                OffsetDateTime.now()
+        );
+
+        assignment =
+                assignmentRepository.save(
+                        assignment
+                );
+
+
+        // -----------------------------------------------------
+        // Partner becomes ONLINE again
+        // -----------------------------------------------------
+
+        DeliveryPartner partner =
+                assignment.getPartner();
+
+        partner.setAvailabilityStatus("ONLINE");
+
+        Integer totalDeliveries =
+                partner.getTotalDeliveries();
+
+        if (totalDeliveries == null) {
+            totalDeliveries = 0;
+        }
+
+        partner.setTotalDeliveries(
+                totalDeliveries + 1
+        );
+
+        partnerRepository.save(partner);
+
+
+        return mapToResponse(assignment);
+    }
+
+
+    // =========================================================
+    // 7. GET MY ASSIGNMENT
     // =========================================================
 
     @Override
     @Transactional(readOnly = true)
     public DeliveryAssignmentResponse getMyAssignment() {
 
-        String phone =
-                SecurityContextHolder
-                        .getContext()
-                        .getAuthentication()
-                        .getName();
+        String phone = getLoggedInPhone();
 
 
-        // Find delivery partner using logged-in user
         DeliveryPartner partner =
                 partnerRepository
                         .findByUserPhone(phone)
@@ -281,10 +800,10 @@ public class DeliveryAssignmentServiceImpl
 
 
         /*
-         * Currently fetching assignments.
+         * Development version.
          *
-         * Later we will optimize this with a direct
-         * repository query.
+         * Later we will replace this with a direct
+         * database query.
          */
         DeliveryAssignment assignment =
                 assignmentRepository
@@ -310,7 +829,7 @@ public class DeliveryAssignmentServiceImpl
 
 
     // =========================================================
-    // GET ASSIGNMENT BY ID
+    // 8. GET ASSIGNMENT BY ID
     // =========================================================
 
     @Override
@@ -333,7 +852,42 @@ public class DeliveryAssignmentServiceImpl
 
 
     // =========================================================
-    // FIND USER
+    // 9. GET LOGGED-IN USER PHONE
+    // =========================================================
+
+    private String getLoggedInPhone() {
+
+        if (SecurityContextHolder
+                .getContext()
+                .getAuthentication() == null) {
+
+            throw new RuntimeException(
+                    "User is not authenticated"
+            );
+        }
+
+
+        String phone =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication()
+                        .getName();
+
+
+        if (phone == null || phone.isBlank()) {
+
+            throw new RuntimeException(
+                    "Authenticated user phone not found"
+            );
+        }
+
+
+        return phone;
+    }
+
+
+    // =========================================================
+    // 10. FIND USER
     // =========================================================
 
     private User findUser(String phone) {
@@ -349,7 +903,76 @@ public class DeliveryAssignmentServiceImpl
 
 
     // =========================================================
-    // MAP ENTITY → RESPONSE
+    // 11. GENERATE 6 DIGIT OTP
+    // =========================================================
+
+    private String generateOtp() {
+
+        Random random = new Random();
+
+        int otp =
+                100000 +
+                random.nextInt(900000);
+
+        return String.valueOf(otp);
+    }
+
+
+    // =========================================================
+    // 12. HASH OTP
+    // =========================================================
+
+    private String hashOtp(String otp) {
+
+        try {
+
+            MessageDigest digest =
+                    MessageDigest.getInstance("SHA-256");
+
+
+            byte[] hash =
+                    digest.digest(
+                            otp.getBytes(
+                                    StandardCharsets.UTF_8
+                            )
+                    );
+
+
+            StringBuilder hexString =
+                    new StringBuilder();
+
+
+            for (byte b : hash) {
+
+                String hex =
+                        Integer.toHexString(
+                                0xff & b
+                        );
+
+
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+
+
+                hexString.append(hex);
+            }
+
+
+            return hexString.toString();
+
+        } catch (Exception e) {
+
+            throw new RuntimeException(
+                    "Unable to hash OTP",
+                    e
+            );
+        }
+    }
+
+
+    // =========================================================
+    // 13. ENTITY → RESPONSE
     // =========================================================
 
     private DeliveryAssignmentResponse mapToResponse(
