@@ -2,6 +2,7 @@ package com.aaspaas.aaspaas_backend.notification.controller;
 
 import com.aaspaas.aaspaas_backend.notification.dto.NotificationResponse;
 import com.aaspaas.aaspaas_backend.notification.dto.RegisterDeviceRequest;
+import com.aaspaas.aaspaas_backend.notification.dto.TestNotificationRequest;
 import com.aaspaas.aaspaas_backend.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -106,4 +107,21 @@ public class NotificationController {
 
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/test")
+public ResponseEntity<NotificationResponse>
+testNotification(
+        @RequestBody TestNotificationRequest request) {
+
+    return ResponseEntity.ok(
+            notificationService.createNotification(
+                    request.getUserId(),
+                    request.getTitle(),
+                    request.getMessage(),
+                    request.getType(),
+                    request.getReferenceType(),
+                    request.getReferenceId()
+            )
+    );
+}
 }

@@ -1,7 +1,8 @@
 package com.aaspaas.aaspaas_backend.delivery.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.OffsetDateTime;
 
@@ -9,54 +10,32 @@ import java.time.OffsetDateTime;
 @Table(
     name = "delivery_assignments",
     indexes = {
-        @Index(
-            name = "idx_assignment_partner",
-            columnList = "partner_id"
-        ),
-        @Index(
-            name = "idx_assignment_status",
-            columnList = "status"
-        )
+        @Index(name = "idx_delivery_assignment_request_id", columnList = "delivery_request_id"),
+        @Index(name = "idx_delivery_assignment_partner_id", columnList = "partner_id"),
+        @Index(name = "idx_delivery_assignment_status", columnList = "status")
     }
 )
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class DeliveryAssignment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-        name = "delivery_request_id",
-        nullable = false,
-        unique = true
-    )
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "delivery_request_id", nullable = false)
     private DeliveryRequest deliveryRequest;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-        name = "partner_id",
-        nullable = false
-    )
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "partner_id", nullable = false)
     private DeliveryPartner partner;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-        name = "quote_id",
-        nullable = false,
-        unique = true
-    )
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "quote_id")
     private DeliveryQuote quote;
 
-    @Column(
-        name = "assigned_at",
-        nullable = false
-    )
+    @Column(name = "assigned_at", nullable = false)
     private OffsetDateTime assignedAt;
 
     @Column(name = "accepted_at")
@@ -68,8 +47,9 @@ public class DeliveryAssignment {
     @Column(name = "delivered_at")
     private OffsetDateTime deliveredAt;
 
-    @Column(nullable = false, length = 30)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 30)
+    private DeliveryAssignmentStatus status;
 
     @PrePersist
     protected void onCreate() {
@@ -79,7 +59,7 @@ public class DeliveryAssignment {
         }
 
         if (status == null) {
-            status = "ASSIGNED";
+            status = DeliveryAssignmentStatus.ASSIGNED;
         }
     }
 }

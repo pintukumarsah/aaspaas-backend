@@ -1,8 +1,11 @@
 package com.aaspaas.aaspaas_backend.delivery.controller;
 
+import com.aaspaas.aaspaas_backend.common.dto.ApiResponse;
 import com.aaspaas.aaspaas_backend.delivery.dto.CreateDeliveryPartnerRequest;
 import com.aaspaas.aaspaas_backend.delivery.dto.DeliveryPartnerResponse;
+import com.aaspaas.aaspaas_backend.delivery.dto.PartnerRouteUpdateRequest;
 import com.aaspaas.aaspaas_backend.delivery.service.DeliveryPartnerService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,7 +19,9 @@ public class DeliveryPartnerController {
 
     @PostMapping("/register")
     public ResponseEntity<DeliveryPartnerResponse> register(
-            @RequestBody CreateDeliveryPartnerRequest request) {
+            @Valid
+            @RequestBody
+            CreateDeliveryPartnerRequest request) {
 
         return ResponseEntity.ok(
                 deliveryPartnerService.register(request)
@@ -37,6 +42,23 @@ public class DeliveryPartnerController {
 
         return ResponseEntity.ok(
                 deliveryPartnerService.updateAvailability(status)
+        );
+    }
+
+    @PutMapping("/route")
+    public ResponseEntity<ApiResponse<String>> updateRoute(
+            @Valid
+            @RequestBody
+            PartnerRouteUpdateRequest request) {
+
+        deliveryPartnerService.updateRoute(request);
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(
+                        true,
+                        "Route updated successfully",
+                        "Route information updated"
+                )
         );
     }
 }

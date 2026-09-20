@@ -70,6 +70,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/delivery/quotes/**").authenticated()
                         .requestMatchers("/api/delivery/assignments/**").authenticated()
                         .requestMatchers("/api/notifications/**").authenticated()
+                        .requestMatchers("/api/delivery/matching/**").authenticated()
 
                         // DELIVERY PARTNER
                         .requestMatchers("/api/delivery/**").hasAnyRole("DELIVERY_PARTNER", "ADMIN")

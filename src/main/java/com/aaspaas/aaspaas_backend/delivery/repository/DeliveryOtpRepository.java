@@ -1,6 +1,7 @@
 package com.aaspaas.aaspaas_backend.delivery.repository;
 
 import com.aaspaas.aaspaas_backend.delivery.entity.DeliveryOtp;
+import com.aaspaas.aaspaas_backend.delivery.entity.DeliveryOtpType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
@@ -10,7 +11,7 @@ public interface DeliveryOtpRepository
 
     Optional<DeliveryOtp>
     findTopByDeliveryAssignmentIdAndOtpTypeAndVerifiedAtIsNullOrderByCreatedAtDesc(
-            Long deliveryAssignmentId,
-            String otpType
+            Long assignmentId,
+            DeliveryOtpType otpType
     );
 }

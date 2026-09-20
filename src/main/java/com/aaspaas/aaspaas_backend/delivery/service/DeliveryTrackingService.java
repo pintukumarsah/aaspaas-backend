@@ -6,25 +6,15 @@ import java.util.List;
 
 public interface DeliveryTrackingService {
 
-    DeliveryTrackingResponse addLocation(
-            Long assignmentId,
-            CreateDeliveryTrackingRequest request
-    );
+    DeliveryTrackingResponse addLocation(Long assignmentId, CreateDeliveryTrackingRequest request);
 
-    DeliveryTrackingResponse getLatestLocation(
-            Long assignmentId
-    );
+    DeliveryTrackingResponse getLatestLocation(Long assignmentId);
 
-    List<DeliveryTrackingResponse> getTrackingHistory(
-            Long assignmentId
-    );
+    List<DeliveryTrackingResponse> getTrackingHistory(Long assignmentId);
 
-    DeliveryStatusHistoryResponse updateStatus(
-            Long assignmentId,
-            UpdateDeliveryStatusRequest request
-    );
+    DeliveryStatusHistoryResponse updateStatus(Long assignmentId, UpdateDeliveryStatusRequest request);
 
-    List<DeliveryStatusHistoryResponse> getStatusHistory(
-            Long assignmentId
-    );
+    List<DeliveryStatusHistoryResponse> getStatusHistory(Long assignmentId);
+
+    DeliveryTrackingResponse updateLocation(Long assignmentId, LocationUpdateRequest request);
 }

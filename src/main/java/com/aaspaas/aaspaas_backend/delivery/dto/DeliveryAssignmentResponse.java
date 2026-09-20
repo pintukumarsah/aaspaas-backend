@@ -28,6 +28,8 @@ public class DeliveryAssignmentResponse {
 
     private String status;
 
+    // private String name;
+
     private OffsetDateTime assignedAt;
 
     private OffsetDateTime acceptedAt;

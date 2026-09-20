@@ -15,4 +15,8 @@ public interface DeliveryAssignmentRepository
     findByQuoteId(Long quoteId);
 
     boolean existsByDeliveryRequestId(Long deliveryRequestId);
+
+     Optional<DeliveryAssignment>
+    findByIdAndPartnerId(Long id, Long partnerId);
+
 }

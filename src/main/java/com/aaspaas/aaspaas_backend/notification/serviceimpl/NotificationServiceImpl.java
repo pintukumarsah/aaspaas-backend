@@ -15,6 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.aaspaas.aaspaas_backend.notification.service.NotificationService;
+import com.aaspaas.aaspaas_backend.notification.service.PushNotificationService;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -29,53 +30,118 @@ public class NotificationServiceImpl
     private final UserDeviceRepository userDeviceRepository;
 
     private final UserRepository userRepository;
+    private final PushNotificationService pushNotificationService;
 
-    @Override
-    @Transactional
-    public NotificationResponse createNotification(
-            Long userId,
-            String title,
-            String message,
-            String type,
-            String referenceType,
-            Long referenceId) {
 
-        User user =
-                userRepository
-                        .findById(userId)
-                        .orElseThrow(() ->
-                                new RuntimeException(
-                                        "User not found"
-                                ));
+//     @Override
+//     @Transactional
+//     public NotificationResponse createNotification(
+//             Long userId,
+//             String title,
+//             String message,
+//             String type,
+//             String referenceType,
+//             Long referenceId) {
 
-        Notification notification =
-                Notification.builder()
-                        .user(user)
-                        .title(title)
-                        .message(message)
-                        .type(type)
-                        .referenceType(referenceType)
-                        .referenceId(referenceId)
-                        .isRead(false)
-                        .createdAt(
-                                OffsetDateTime.now()
-                        )
-                        .build();
+//         User user =
+//                 userRepository
+//                         .findById(userId)
+//                         .orElseThrow(() ->
+//                                 new RuntimeException(
+//                                         "User not found"
+//                                 ));
 
-        notification =
-                notificationRepository.save(
-                        notification
-                );
+//         Notification notification =
+//                 Notification.builder()
+//                         .user(user)
+//                         .title(title)
+//                         .message(message)
+//                         .type(type)
+//                         .referenceType(referenceType)
+//                         .referenceId(referenceId)
+//                         .isRead(false)
+//                         .createdAt(
+//                                 OffsetDateTime.now()
+//                         )
+//                         .build();
 
-        /*
-         * FCM will be called here later.
-         *
-         * Database notification is already
-         * saved successfully.
-         */
+//         notification =
+//                 notificationRepository.save(
+//                         notification
+//                 );
 
-        return mapNotification(notification);
+//         /*
+//          * FCM will be called here later.
+//          *
+//          * Database notification is already
+//          * saved successfully.
+//          */
+
+//         return mapNotification(notification);
+//     }
+
+@Override
+@Transactional
+public NotificationResponse createNotification(
+        Long userId,
+        String title,
+        String message,
+        String type,
+        String referenceType,
+        Long referenceId) {
+
+    User user =
+            userRepository
+                    .findById(userId)
+                    .orElseThrow(() ->
+                            new RuntimeException(
+                                    "User not found"
+                            ));
+
+    Notification notification =
+            Notification.builder()
+                    .user(user)
+                    .title(title)
+                    .message(message)
+                    .type(type)
+                    .referenceType(referenceType)
+                    .referenceId(referenceId)
+                    .isRead(false)
+                    .createdAt(
+                            OffsetDateTime.now()
+                    )
+                    .build();
+
+    notification =
+            notificationRepository.save(
+                    notification
+            );
+
+    /*
+     * Get all active devices of user
+     */
+    List<UserDevice> devices =
+            userDeviceRepository
+                    .findByUserIdAndIsActiveTrue(
+                            userId
+                    );
+
+    /*
+     * Send push notification
+     */
+    for (UserDevice device : devices) {
+
+        pushNotificationService.sendToDevice(
+                device.getDeviceToken(),
+                title,
+                message,
+                referenceType,
+                referenceId
+        );
     }
+
+    return mapNotification(notification);
+}
 
     @Override
     @Transactional(readOnly = true)

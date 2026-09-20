@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>AASPAAS WebSocket Test</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.1.1/bundles/stomp.umd.min.js"></script>
+</head>
+
+<body>
+
+<h2>AASPAAS Live Delivery Tracking Test</h2>
+
+<button onclick="connect()">Connect</button>
+
+<button onclick="subscribe()">Subscribe</button>
+
+<pre id="output"></pre>
+
+<script>
+
+const token = "YOUR_ACCESS_TOKEN";
+
+const assignmentId = 1;
+
+let client;
+
+function log(message) {
+
+    document.getElementById("output")
+        .textContent += message + "\n";
+}
+
+function connect() {
+
+    client = new StompJs.Client({
+
+        brokerURL: "ws://localhost:9090/ws",
+
+        connectHeaders: {
+            Authorization: "Bearer " + token
+        },
+
+        reconnectDelay: 5000,
+
+        debug: function (message) {
+
+            console.log(message);
+        },
+
+        onConnect: function () {
+
+            log("CONNECTED SUCCESSFULLY");
+        },
+
+        onStompError: function (frame) {
+
+            log(
+                "STOMP ERROR: "
+                + frame.headers["message"]
+            );
+        },
+
+        onWebSocketError: function (error) {
+
+            log("WEBSOCKET ERROR");
+            console.error(error);
+        }
+    });
+
+    client.activate();
+}
+
+function subscribe() {
+
+    if (!client || !client.connected) {
+
+        log("Please connect first");
+
+        return;
+    }
+
+    client.subscribe(
+        "/topic/delivery/" + assignmentId,
+
+        function (message) {
+
+            log(
+                "LIVE LOCATION:\n"
+                + message.body
+            );
+        }
+    );
+
+    log(
+        "Subscribed to /topic/delivery/"
+        + assignmentId
+    );
+}
+
+</script>
+
+</body>
+
+</html>

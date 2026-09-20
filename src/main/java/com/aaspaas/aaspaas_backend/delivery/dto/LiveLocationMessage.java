@@ -1,20 +1,24 @@
 package com.aaspaas.aaspaas_backend.delivery.dto;
 
-import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 
 @Getter
-@Setter
-public class CreateDeliveryTrackingRequest {
+@AllArgsConstructor
+public class LiveLocationMessage {
 
-    @NotNull(message = "Latitude is required")
+    private Long assignmentId;
+
     private BigDecimal latitude;
 
-    @NotNull(message = "Longitude is required")
     private BigDecimal longitude;
 
     private BigDecimal accuracyMeters;
+
+    private String status;
+
+    private OffsetDateTime recordedAt;
 }
