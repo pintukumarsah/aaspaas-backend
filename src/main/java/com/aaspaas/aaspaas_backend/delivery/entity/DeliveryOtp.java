@@ -2,7 +2,8 @@ package com.aaspaas.aaspaas_backend.delivery.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import java.time.OffsetDateTime;
 
 @Entity
@@ -37,12 +38,16 @@ public class DeliveryOtp {
     )
     private DeliveryAssignment deliveryAssignment;
 
-    @Column(
-        name = "otp_type",
-        nullable = false,
-        length = 30
-    )
-    private String otpType;
+    // @Column(
+    //     name = "otp_type",
+    //     nullable = false,
+    //     length = 30
+    // )
+    // private String otpType;
+
+    @Enumerated(EnumType.STRING)
+@Column(name = "otp_type", nullable = false, length = 30)
+private DeliveryOtpType otpType;
 
     @Column(
         name = "otp_hash",

@@ -71,6 +71,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/delivery/assignments/**").authenticated()
                         .requestMatchers("/api/notifications/**").authenticated()
                         .requestMatchers("/api/delivery/matching/**").authenticated()
+                        .requestMatchers("/api/delivery/routes/**").authenticated()
 
                         // DELIVERY PARTNER
                         .requestMatchers("/api/delivery/**").hasAnyRole("DELIVERY_PARTNER", "ADMIN")

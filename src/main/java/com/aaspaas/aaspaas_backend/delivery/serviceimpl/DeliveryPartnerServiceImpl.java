@@ -4,6 +4,7 @@ import com.aaspaas.aaspaas_backend.delivery.dto.CreateDeliveryPartnerRequest;
 import com.aaspaas.aaspaas_backend.delivery.dto.DeliveryPartnerResponse;
 import com.aaspaas.aaspaas_backend.delivery.dto.PartnerRouteUpdateRequest;
 import com.aaspaas.aaspaas_backend.delivery.entity.DeliveryPartner;
+import com.aaspaas.aaspaas_backend.delivery.entity.DeliveryPartnerAvailabilityStatus;
 import com.aaspaas.aaspaas_backend.delivery.repository.DeliveryPartnerRepository;
 import com.aaspaas.aaspaas_backend.delivery.service.DeliveryPartnerService;
 import com.aaspaas.aaspaas_backend.user.entity.User;
@@ -13,6 +14,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 @Service
@@ -45,8 +47,8 @@ public class DeliveryPartnerServiceImpl
                 .vehicleType(request.getVehicleType())
                 .vehicleNumber(request.getVehicleNumber())
                 .verificationStatus("PENDING")
-                .availabilityStatus("OFFLINE")
-                .rating(java.math.BigDecimal.ZERO)
+                .availabilityStatus(DeliveryPartnerAvailabilityStatus.OFFLINE)
+                .rating(BigDecimal.ZERO)
                 .totalDeliveries(0)
                 .routeAvailable(false)
                 .build();
@@ -94,23 +96,24 @@ public class DeliveryPartnerServiceImpl
                         ? ""
                         : status.trim().toUpperCase();
 
-        if (!normalizedStatus.equals("ONLINE")
-                && !normalizedStatus.equals("OFFLINE")
-                && !normalizedStatus.equals("BUSY")) {
+        DeliveryPartnerAvailabilityStatus newStatus;
 
+        try {
+            newStatus = DeliveryPartnerAvailabilityStatus.valueOf(normalizedStatus);
+        } catch (IllegalArgumentException ex) {
             throw new RuntimeException(
                     "Invalid availability status. " +
-                    "Allowed values: ONLINE, OFFLINE, BUSY"
+                    "Allowed values: AVAILABLE, OFFLINE, BUSY"
             );
         }
 
-        partner.setAvailabilityStatus(normalizedStatus);
+        partner.setAvailabilityStatus(newStatus);
 
         /*
          * If partner goes OFFLINE, their route should not
          * remain publicly matchable.
          */
-        if ("OFFLINE".equals(normalizedStatus)) {
+        if (newStatus == DeliveryPartnerAvailabilityStatus.OFFLINE) {
             partner.setRouteAvailable(false);
         }
 
@@ -134,16 +137,16 @@ public class DeliveryPartnerServiceImpl
                                 )
                         );
 
-        if (!"ONLINE".equals(partner.getAvailabilityStatus())) {
+        if (partner.getAvailabilityStatus() != DeliveryPartnerAvailabilityStatus.AVAILABLE) {
             throw new RuntimeException(
-                    "Delivery partner must be ONLINE to publish a route"
+                    "Delivery partner must be AVAILABLE to publish a route"
             );
         }
 
         if (request.currentLatitude()
-                .compareTo(java.math.BigDecimal.valueOf(90)) > 0
+                .compareTo(BigDecimal.valueOf(90)) > 0
                 || request.currentLatitude()
-                .compareTo(java.math.BigDecimal.valueOf(-90)) < 0) {
+                .compareTo(BigDecimal.valueOf(-90)) < 0) {
 
             throw new RuntimeException(
                     "Invalid current latitude"
@@ -151,9 +154,9 @@ public class DeliveryPartnerServiceImpl
         }
 
         if (request.currentLongitude()
-                .compareTo(java.math.BigDecimal.valueOf(180)) > 0
+                .compareTo(BigDecimal.valueOf(180)) > 0
                 || request.currentLongitude()
-                .compareTo(java.math.BigDecimal.valueOf(-180)) < 0) {
+                .compareTo(BigDecimal.valueOf(-180)) < 0) {
 
             throw new RuntimeException(
                     "Invalid current longitude"
@@ -161,9 +164,9 @@ public class DeliveryPartnerServiceImpl
         }
 
         if (request.destinationLatitude()
-                .compareTo(java.math.BigDecimal.valueOf(90)) > 0
+                .compareTo(BigDecimal.valueOf(90)) > 0
                 || request.destinationLatitude()
-                .compareTo(java.math.BigDecimal.valueOf(-90)) < 0) {
+                .compareTo(BigDecimal.valueOf(-90)) < 0) {
 
             throw new RuntimeException(
                     "Invalid destination latitude"
@@ -171,9 +174,9 @@ public class DeliveryPartnerServiceImpl
         }
 
         if (request.destinationLongitude()
-                .compareTo(java.math.BigDecimal.valueOf(180)) > 0
+                .compareTo(BigDecimal.valueOf(180)) > 0
                 || request.destinationLongitude()
-                .compareTo(java.math.BigDecimal.valueOf(-180)) < 0) {
+                .compareTo(BigDecimal.valueOf(-180)) < 0) {
 
             throw new RuntimeException(
                     "Invalid destination longitude"
@@ -255,7 +258,7 @@ public class DeliveryPartnerServiceImpl
                         partner.getVerificationStatus()
                 )
                 .availabilityStatus(
-                        partner.getAvailabilityStatus()
+                        partner.getAvailabilityStatus().name()
                 )
                 .rating(partner.getRating())
                 .totalDeliveries(

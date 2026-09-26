@@ -80,8 +80,15 @@ public class WebSocketAuthChannelInterceptor
         String token =
                 authorization.substring(7);
 
+        if (!jwtService.isTokenValid(token)) {
+
+            throw new IllegalArgumentException(
+                    "Invalid WebSocket JWT"
+            );
+        }
+
         String phone =
-                jwtService.extractUsername(token);
+                jwtService.extractPhone(token);
 
         User user =
                 userRepository.findByPhone(phone)
@@ -90,16 +97,6 @@ public class WebSocketAuthChannelInterceptor
                                         "WebSocket user not found"
                                 )
                         );
-
-        if (!jwtService.isTokenValid(
-                token,
-                user
-        )) {
-
-            throw new IllegalArgumentException(
-                    "Invalid WebSocket JWT"
-            );
-        }
 
         Authentication authentication =
                 new UsernamePasswordAuthenticationToken(

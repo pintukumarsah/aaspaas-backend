@@ -11,7 +11,7 @@ jwt:
 
 app:
   otp:
-    expiry-minutes: 10
+    expiry-minutes: 60
     development-mode: true
 
         # development-mode: true  ---production ke liye false hoga

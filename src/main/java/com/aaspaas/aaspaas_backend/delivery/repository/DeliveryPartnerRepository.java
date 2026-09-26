@@ -38,4 +38,14 @@ public interface DeliveryPartnerRepository
             @Param("minimumLocationTime")
             OffsetDateTime minimumLocationTime
     );
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+@Query("""
+    SELECT dp
+    FROM DeliveryPartner dp
+    JOIN FETCH dp.user u
+    WHERE dp.id = :id
+    """)
+Optional<DeliveryPartner> findByIdForUpdate(
+        @Param("id") Long id
+);
 }

@@ -65,12 +65,20 @@ public class DeliveryPartner {
     )
     private String verificationStatus;
 
-    @Column(
-            name = "availability_status",
-            nullable = false,
-            length = 30
-    )
-    private String availabilityStatus;
+//     @Column(
+//             name = "availability_status",
+//             nullable = false,
+//             length = 30
+//     )
+//     private String availabilityStatus;
+
+@Enumerated(EnumType.STRING)
+@Column(
+        name = "availability_status",
+        nullable = false,
+        length = 30
+)
+private DeliveryPartnerAvailabilityStatus availabilityStatus;
 
     @Column(
             nullable = false,
@@ -167,9 +175,13 @@ public class DeliveryPartner {
             verificationStatus = "PENDING";
         }
 
+        // if (availabilityStatus == null) {
+        //     availabilityStatus = "OFFLINE";
+        // }
+
         if (availabilityStatus == null) {
-            availabilityStatus = "OFFLINE";
-        }
+    availabilityStatus = DeliveryPartnerAvailabilityStatus.OFFLINE;
+}
 
         if (rating == null) {
             rating = BigDecimal.ZERO;
