@@ -1,9 +1,10 @@
 package com.aaspaas.aaspaas_backend.delivery.controller;
 
-import com.aaspaas.aaspaas_backend.delivery.dto.CreateDeliveryQuoteRequest;
-import com.aaspaas.aaspaas_backend.delivery.dto.DeliveryQuoteResponse;
+import com.aaspaas.aaspaas_backend.delivery.dto.DeliveryQuoteSelectionResponse;
+import com.aaspaas.aaspaas_backend.delivery.entity.DeliveryQuote;
 import com.aaspaas.aaspaas_backend.delivery.service.DeliveryQuoteService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,33 +17,32 @@ public class DeliveryQuoteController {
 
     private final DeliveryQuoteService deliveryQuoteService;
 
-    @PostMapping
-    public ResponseEntity<DeliveryQuoteResponse> createQuote(
-            @RequestBody CreateDeliveryQuoteRequest request) {
-
-        return ResponseEntity.ok(
-                deliveryQuoteService.createQuote(request)
-        );
-    }
 
     @GetMapping("/request/{deliveryRequestId}")
-    public ResponseEntity<List<DeliveryQuoteResponse>>
-    getQuotesForRequest(
-            @PathVariable Long deliveryRequestId) {
+    public ResponseEntity<List<DeliveryQuote>> getQuotes(
+            @PathVariable Long deliveryRequestId
+    ) {
 
         return ResponseEntity.ok(
-                deliveryQuoteService.getQuotesForRequest(
-                        deliveryRequestId
-                )
+                deliveryQuoteService
+                        .getQuotesForRequest(
+                                deliveryRequestId
+                        )
         );
     }
 
-    @GetMapping("/my")
-    public ResponseEntity<List<DeliveryQuoteResponse>>
-    getMyQuotes() {
 
-        return ResponseEntity.ok(
-                deliveryQuoteService.getMyQuotes()
-        );
+    @PostMapping("/{quoteId}/select")
+    public ResponseEntity<DeliveryQuoteSelectionResponse>
+    selectQuote(
+            @PathVariable Long quoteId
+    ) {
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(
+                        deliveryQuoteService
+                                .selectQuote(quoteId)
+                );
     }
 }

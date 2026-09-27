@@ -1,6 +1,9 @@
 package com.aaspaas.aaspaas_backend.delivery.repository;
 
 import com.aaspaas.aaspaas_backend.delivery.entity.DeliveryPartner;
+import com.aaspaas.aaspaas_backend.delivery.entity.DeliveryPartnerAvailabilityStatus;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -25,7 +28,7 @@ public interface DeliveryPartnerRepository
     @Query("""
         SELECT dp
         FROM DeliveryPartner dp
-        WHERE dp.availabilityStatus = 'ONLINE'
+        WHERE dp.availabilityStatus = :availabilityStatus
           AND dp.verificationStatus = 'APPROVED'
           AND dp.routeAvailable = true
           AND dp.currentLatitude IS NOT NULL
@@ -36,7 +39,9 @@ public interface DeliveryPartnerRepository
     """)
     List<DeliveryPartner> findEligibleRoutePartners(
             @Param("minimumLocationTime")
-            OffsetDateTime minimumLocationTime
+            OffsetDateTime minimumLocationTime,
+            @Param("availabilityStatus")
+            DeliveryPartnerAvailabilityStatus availabilityStatus
     );
     @Lock(LockModeType.PESSIMISTIC_WRITE)
 @Query("""

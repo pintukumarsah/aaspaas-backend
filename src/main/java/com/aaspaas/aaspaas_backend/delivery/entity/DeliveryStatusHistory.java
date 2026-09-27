@@ -1,5 +1,6 @@
 package com.aaspaas.aaspaas_backend.delivery.entity;
 
+import com.aaspaas.aaspaas_backend.delivery.enums.DeliveryAssignmentStatus;
 import jakarta.persistence.*;
 import lombok.*;
 

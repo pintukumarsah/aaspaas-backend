@@ -3,6 +3,7 @@ package com.aaspaas.aaspaas_backend.delivery.serviceimpl;
 import com.aaspaas.aaspaas_backend.common.util.DistanceUtils;
 import com.aaspaas.aaspaas_backend.delivery.dto.DeliveryPartnerMatchResponse;
 import com.aaspaas.aaspaas_backend.delivery.entity.DeliveryPartner;
+import com.aaspaas.aaspaas_backend.delivery.entity.DeliveryPartnerAvailabilityStatus;
 import com.aaspaas.aaspaas_backend.delivery.repository.DeliveryPartnerRepository;
 import com.aaspaas.aaspaas_backend.delivery.service.DeliveryPartnerMatchingService;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +50,8 @@ public class DeliveryPartnerMatchingServiceImpl
 
         List<DeliveryPartner> partners =
                 partnerRepository.findEligibleRoutePartners(
-                        minimumLocationTime
+                        minimumLocationTime,
+                        DeliveryPartnerAvailabilityStatus.AVAILABLE
                 );
 
         return partners.stream()

@@ -21,6 +21,10 @@ import java.util.Base64;
 public class RefreshTokenServiceImpl
         implements RefreshTokenService {
 
+    private static final int TOKEN_BYTES = 32;
+
+    private static final int TOKEN_EXPIRY_DAYS = 7;
+
     private final RefreshTokenRepository refreshTokenRepository;
 
     private final SecureRandom secureRandom = new SecureRandom();
@@ -29,20 +33,35 @@ public class RefreshTokenServiceImpl
     @Transactional
     public String createRefreshToken(User user) {
 
-        byte[] randomBytes = new byte[32];
+        if (user == null || user.getId() == null) {
+            throw new BusinessException(
+                    "Valid user is required to create refresh token",
+                    400
+            );
+        }
+
+        byte[] randomBytes =
+                new byte[TOKEN_BYTES];
 
         secureRandom.nextBytes(randomBytes);
 
-        String rawToken = Base64.getUrlEncoder()
-                .withoutPadding()
-                .encodeToString(randomBytes);
+        String rawToken =
+                Base64.getUrlEncoder()
+                        .withoutPadding()
+                        .encodeToString(randomBytes);
 
-        RefreshToken refreshToken = new RefreshToken();
+        RefreshToken refreshToken =
+                new RefreshToken();
 
         refreshToken.setUser(user);
-        refreshToken.setTokenHash(hashToken(rawToken));
+
+        refreshToken.setTokenHash(
+                hashToken(rawToken)
+        );
+
         refreshToken.setExpiresAt(
-                OffsetDateTime.now().plusDays(7)
+                OffsetDateTime.now()
+                        .plusDays(TOKEN_EXPIRY_DAYS)
         );
 
         refreshTokenRepository.save(refreshToken);
@@ -51,9 +70,22 @@ public class RefreshTokenServiceImpl
     }
 
     @Override
-    public RefreshToken verifyRefreshToken(String rawToken) {
+    @Transactional(readOnly = true)
+    public RefreshToken verifyRefreshToken(
+            String rawToken
+    ) {
 
-        String tokenHash = hashToken(rawToken);
+        if (rawToken == null ||
+                rawToken.isBlank()) {
+
+            throw new BusinessException(
+                    "Refresh token is required",
+                    401
+            );
+        }
+
+        String tokenHash =
+                hashToken(rawToken);
 
         RefreshToken refreshToken =
                 refreshTokenRepository
@@ -73,8 +105,9 @@ public class RefreshTokenServiceImpl
             );
         }
 
-        if (refreshToken.getExpiresAt()
-                .isBefore(OffsetDateTime.now())) {
+        if (refreshToken.getExpiresAt() == null ||
+                !refreshToken.getExpiresAt()
+                        .isAfter(OffsetDateTime.now())) {
 
             throw new BusinessException(
                     "Refresh token has expired",
@@ -87,30 +120,54 @@ public class RefreshTokenServiceImpl
 
     @Override
     @Transactional
-    public void revokeToken(String rawToken) {
+    public void revokeToken(
+            String rawToken
+    ) {
 
-        String tokenHash = hashToken(rawToken);
+        if (rawToken == null ||
+                rawToken.isBlank()) {
+            return;
+        }
+
+        String tokenHash =
+                hashToken(rawToken);
 
         refreshTokenRepository
                 .findByTokenHash(tokenHash)
                 .ifPresent(token -> {
-                    token.setRevokedAt(
-                            OffsetDateTime.now()
-                    );
 
-                    refreshTokenRepository.save(token);
+                    if (token.getRevokedAt() == null) {
+
+                        token.setRevokedAt(
+                                OffsetDateTime.now()
+                        );
+
+                        refreshTokenRepository.save(token);
+                    }
                 });
     }
 
     @Override
     @Transactional
-    public void revokeAllUserTokens(User user) {
+    public void revokeAllUserTokens(
+            User user
+    ) {
 
-        // Individual tokens can be revoked as needed.
-        // Bulk revocation can be added later.
+        if (user == null ||
+                user.getId() == null) {
+            return;
+        }
+
+        refreshTokenRepository
+                .revokeAllByUserId(
+                        user.getId(),
+                        OffsetDateTime.now()
+                );
     }
 
-    private String hashToken(String token) {
+    private String hashToken(
+            String token
+    ) {
 
         try {
 
@@ -119,7 +176,9 @@ public class RefreshTokenServiceImpl
 
             byte[] hash =
                     digest.digest(
-                            token.getBytes(StandardCharsets.UTF_8)
+                            token.getBytes(
+                                    StandardCharsets.UTF_8
+                            )
                     );
 
             return Base64.getEncoder()

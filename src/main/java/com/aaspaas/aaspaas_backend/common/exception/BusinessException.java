@@ -11,4 +11,7 @@ public class BusinessException extends RuntimeException {
         super(message);
         this.statusCode = statusCode;
     }
+    public BusinessException(String message) {   // ADD THIS
+    this(message, 400);                        // default 400 Bad Request
+}
 }

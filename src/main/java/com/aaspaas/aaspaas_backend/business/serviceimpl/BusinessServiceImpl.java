@@ -19,7 +19,6 @@ import java.util.List;
 public class BusinessServiceImpl implements BusinessService {
 
     private final BusinessRepository businessRepository;
-
     private final UserRepository userRepository;
 
     @Override

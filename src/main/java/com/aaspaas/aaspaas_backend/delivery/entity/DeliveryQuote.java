@@ -1,54 +1,58 @@
 package com.aaspaas.aaspaas_backend.delivery.entity;
 
+import com.aaspaas.aaspaas_backend.delivery.enums.DeliveryQuoteStatus;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 @Entity
 @Table(
-    name = "delivery_quotes",
-    uniqueConstraints = {
-        @UniqueConstraint(
-            name = "uq_delivery_quote_request_partner",
-            columnNames = {
-                "delivery_request_id",
-                "partner_id"
-            }
-        )
-    }
+        name = "delivery_quotes",
+        indexes = {
+                @Index(
+                        name = "idx_delivery_quotes_request_id",
+                        columnList = "delivery_request_id"
+                ),
+                @Index(
+                        name = "idx_delivery_quotes_partner_id",
+                        columnList = "partner_id"
+                ),
+                @Index(
+                        name = "idx_delivery_quotes_status",
+                        columnList = "status"
+                )
+        }
 )
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class DeliveryQuote {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
-        name = "delivery_request_id",
-        nullable = false
+            name = "delivery_request_id",
+            nullable = false
     )
     private DeliveryRequest deliveryRequest;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
-        name = "partner_id",
-        nullable = false
+            name = "partner_id",
+            nullable = false
     )
     private DeliveryPartner partner;
 
     @Column(
-        name = "quoted_amount",
-        nullable = false,
-        precision = 12,
-        scale = 2
+            name = "quoted_amount",
+            nullable = false,
+            precision = 12,
+            scale = 2
     )
     private BigDecimal quotedAmount;
 
@@ -58,8 +62,13 @@ public class DeliveryQuote {
     @Column(length = 500)
     private String message;
 
-    @Column(nullable = false, length = 30)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(
+            name = "status",
+            nullable = false,
+            length = 20
+    )
+    private DeliveryQuoteStatus status;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
@@ -70,11 +79,18 @@ public class DeliveryQuote {
     @PrePersist
     protected void onCreate() {
 
-        createdAt = OffsetDateTime.now();
-        updatedAt = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
+
+        if (createdAt == null) {
+            createdAt = now;
+        }
+
+        if (updatedAt == null) {
+            updatedAt = now;
+        }
 
         if (status == null) {
-            status = "PENDING";
+            status = DeliveryQuoteStatus.PENDING;
         }
     }
 

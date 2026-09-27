@@ -1,6 +1,7 @@
 package com.aaspaas.aaspaas_backend.delivery.serviceimpl;
 
 import com.aaspaas.aaspaas_backend.delivery.dto.DeliveryAssignmentResponse;
+import com.aaspaas.aaspaas_backend.delivery.enums.DeliveryAssignmentStatus;
 import com.aaspaas.aaspaas_backend.delivery.dto.DeliveryStatusHistoryResponse;
 import com.aaspaas.aaspaas_backend.delivery.dto.OtpResponse;
 import com.aaspaas.aaspaas_backend.delivery.entity.*;
@@ -67,7 +68,7 @@ public class DeliveryAssignmentServiceImpl implements DeliveryAssignmentService 
         if (!"OPEN".equals(deliveryRequest.getStatus())) {
             throw new RuntimeException("Delivery request is no longer open");
         }
-        if (!"PENDING".equals(quote.getStatus())) {
+        if (quote.getStatus() != com.aaspaas.aaspaas_backend.delivery.enums.DeliveryQuoteStatus.PENDING) {
             throw new RuntimeException("This quote is no longer available");
         }
         if (deliveryRequest.getExpiresAt() != null
@@ -80,14 +81,14 @@ public class DeliveryAssignmentServiceImpl implements DeliveryAssignmentService 
 
         DeliveryPartner partner = quote.getPartner();
 
-        quote.setStatus("ACCEPTED");
+        quote.setStatus(com.aaspaas.aaspaas_backend.delivery.enums.DeliveryQuoteStatus.ACCEPTED);
         quoteRepository.save(quote);
 
         List<DeliveryQuote> allQuotes = quoteRepository
                 .findByDeliveryRequestIdOrderByQuotedAmountAsc(deliveryRequest.getId());
         for (DeliveryQuote other : allQuotes) {
-            if (!other.getId().equals(quote.getId()) && "PENDING".equals(other.getStatus())) {
-                other.setStatus("REJECTED");
+            if (!other.getId().equals(quote.getId()) && other.getStatus() == com.aaspaas.aaspaas_backend.delivery.enums.DeliveryQuoteStatus.PENDING) {
+                other.setStatus(com.aaspaas.aaspaas_backend.delivery.enums.DeliveryQuoteStatus.REJECTED);
             }
         }
         quoteRepository.saveAll(allQuotes);

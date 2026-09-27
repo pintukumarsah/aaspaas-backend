@@ -1,5 +1,6 @@
 package com.aaspaas.aaspaas_backend.delivery.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -8,6 +9,7 @@ import java.time.OffsetDateTime;
 
 @Getter
 @Builder
+@AllArgsConstructor
 public class DeliveryAssignmentResponse {
 
     private Long id;
@@ -18,23 +20,23 @@ public class DeliveryAssignmentResponse {
 
     private Long partnerId;
 
-    private Long partnerUserId;
+    private BigDecimal agreedDeliveryFee;
 
-    private String partnerName;
+    private BigDecimal platformCommission;
 
-    private BigDecimal deliveryAmount;
+    private BigDecimal partnerEarning;
 
-    private Integer estimatedMinutes;
+    private String currency;
 
     private String status;
 
-    // private String name;
-
     private OffsetDateTime assignedAt;
 
-    private OffsetDateTime acceptedAt;
-
-    private OffsetDateTime pickedUpAt;
-
-    private OffsetDateTime deliveredAt;
+    private Long partnerUserId;
+private String partnerName;
+private BigDecimal deliveryAmount;
+private Integer estimatedMinutes;
+private OffsetDateTime acceptedAt;
+private OffsetDateTime pickedUpAt;
+private OffsetDateTime deliveredAt;
 }
