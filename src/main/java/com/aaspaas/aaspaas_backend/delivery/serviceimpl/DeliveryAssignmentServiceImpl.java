@@ -7,6 +7,8 @@ import com.aaspaas.aaspaas_backend.delivery.dto.OtpResponse;
 import com.aaspaas.aaspaas_backend.delivery.entity.*;
 import com.aaspaas.aaspaas_backend.delivery.repository.*;
 import com.aaspaas.aaspaas_backend.delivery.service.DeliveryAssignmentService;
+import com.aaspaas.aaspaas_backend.delivery.service.DeliveryFinalizationService;
+
 import com.aaspaas.aaspaas_backend.notification.service.NotificationService;
 import com.aaspaas.aaspaas_backend.user.entity.User;
 import com.aaspaas.aaspaas_backend.user.repository.UserRepository;
@@ -37,6 +39,7 @@ public class DeliveryAssignmentServiceImpl implements DeliveryAssignmentService 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final NotificationService notificationService;
+    private final DeliveryFinalizationService deliveryFinalizationService;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -349,53 +352,282 @@ public class DeliveryAssignmentServiceImpl implements DeliveryAssignmentService 
     // =========================================================
     // 9. VERIFY DELIVERY OTP
     // =========================================================
-    @Override
-    @Transactional
-    public DeliveryAssignmentResponse verifyDeliveryOtp(Long assignmentId, String otp) {
+   @Override
+@Transactional
+public DeliveryAssignmentResponse verifyDeliveryOtp(
+        Long assignmentId,
+        String otp
+) {
 
-        DeliveryAssignment assignment = getAssignmentEntity(assignmentId);
+    /*
+     * =====================================================
+     * STEP 1
+     * Get current authenticated user.
+     * =====================================================
+     */
 
-        if (assignment.getStatus() != DeliveryAssignmentStatus.PICKED_UP
-                && assignment.getStatus() != DeliveryAssignmentStatus.OUT_FOR_DELIVERY
-                && assignment.getStatus() != DeliveryAssignmentStatus.DELIVERY_OTP_SENT) {
-            throw new RuntimeException("Delivery OTP cannot be verified now");
-        }
+    User currentUser =
+            getCurrentUser();
 
-        DeliveryOtp deliveryOtp = otpRepository
-                .findTopByDeliveryAssignmentIdAndOtpTypeAndVerifiedAtIsNullOrderByCreatedAtDesc(
-                        assignmentId, DeliveryOtpType.DELIVERY)
-                .orElseThrow(() -> new RuntimeException("Delivery OTP not found"));
 
-        validateOtp(deliveryOtp, otp);
+    /*
+     * =====================================================
+     * STEP 2
+     * LOCK ASSIGNMENT.
+     *
+     * This is important.
+     *
+     * Without locking:
+     *
+     * Request A ──┐
+     *             ├── same OTP
+     * Request B ──┘
+     *
+     * both could potentially pass before one transaction
+     * commits.
+     * =====================================================
+     */
 
-        deliveryOtp.setVerifiedAt(OffsetDateTime.now());
-        otpRepository.save(deliveryOtp);
+    DeliveryAssignment assignment =
+            assignmentRepository
+                    .findByIdForUpdate(assignmentId)
+                    .orElseThrow(() ->
+                            new RuntimeException(
+                                    "Delivery assignment not found"
+                            )
+                    );
 
-        assignment.setStatus(DeliveryAssignmentStatus.DELIVERED);
-        assignment.setDeliveredAt(OffsetDateTime.now());
-        assignment = assignmentRepository.save(assignment);
 
-        saveHistory(assignment, DeliveryAssignmentStatus.DELIVERED, getCurrentUser().getId(),
-                "Delivery OTP verified");
+    /*
+     * =====================================================
+     * STEP 3
+     * Verify that current user is the assigned partner.
+     * =====================================================
+     */
 
-        DeliveryPartner partner = assignment.getPartner();
-        partner.setAvailabilityStatus(DeliveryPartnerAvailabilityStatus.AVAILABLE);
-        Integer total = partner.getTotalDeliveries();
-        partner.setTotalDeliveries(total == null ? 1 : total + 1);
-        partnerRepository.save(partner);
+    if (!assignment
+            .getPartner()
+            .getUser()
+            .getId()
+            .equals(
+                    currentUser.getId()
+            )) {
 
-        notificationService.createNotification(
-                assignment.getDeliveryRequest().getCustomer().getId(),
-                "Order Delivered",
-                "Your order has been delivered successfully.",
-                "DELIVERED",
-                "DELIVERY_ASSIGNMENT",
-                assignmentId
+        throw new RuntimeException(
+                "You are not assigned to this delivery"
         );
-
-        return mapToResponse(assignment);
     }
 
+
+    /*
+     * =====================================================
+     * STEP 4
+     * Existing state-machine validation.
+     *
+     * NOT NEW functionality.
+     * This was already present in your project.
+     * =====================================================
+     */
+
+    if (assignment.getStatus()
+            != DeliveryAssignmentStatus.PICKED_UP
+            && assignment.getStatus()
+            != DeliveryAssignmentStatus.OUT_FOR_DELIVERY
+            && assignment.getStatus()
+            != DeliveryAssignmentStatus.DELIVERY_OTP_SENT) {
+
+        throw new RuntimeException(
+                "Delivery OTP cannot be verified now"
+        );
+    }
+
+
+    /*
+     * =====================================================
+     * STEP 5
+     * Find latest active delivery OTP.
+     * =====================================================
+     */
+
+    DeliveryOtp deliveryOtp =
+            otpRepository
+                    .findTopByDeliveryAssignmentIdAndOtpTypeAndVerifiedAtIsNullOrderByCreatedAtDesc(
+                            assignmentId,
+                            DeliveryOtpType.DELIVERY
+                    )
+                    .orElseThrow(() ->
+                            new RuntimeException(
+                                    "Delivery OTP not found"
+                            )
+                    );
+
+
+    /*
+     * =====================================================
+     * STEP 6
+     * Existing OTP validation.
+     *
+     * DO NOT create another OTP validation system.
+     * =====================================================
+     */
+
+    validateOtp(
+            deliveryOtp,
+            otp
+    );
+
+
+    /*
+     * =====================================================
+     * STEP 7
+     * Mark OTP verified.
+     * =====================================================
+     */
+
+    OffsetDateTime completedAt =
+            OffsetDateTime.now();
+
+    deliveryOtp.setVerifiedAt(
+            completedAt
+    );
+
+    otpRepository.save(
+            deliveryOtp
+    );
+
+
+    /*
+     * =====================================================
+     * STEP 8
+     * Existing state transition:
+     *
+     * DELIVERY_OTP_SENT
+     *        ↓
+     * DELIVERED
+     *
+     * We are NOT moving this responsibility to Part 24.
+     * =====================================================
+     */
+
+    assignment.setStatus(
+            DeliveryAssignmentStatus.DELIVERED
+    );
+
+    assignment.setDeliveredAt(
+            completedAt
+    );
+
+    assignment =
+            assignmentRepository.save(
+                    assignment
+            );
+
+
+    /*
+     * =====================================================
+     * STEP 9
+     * Existing history.
+     * =====================================================
+     */
+
+    saveHistory(
+            assignment,
+            DeliveryAssignmentStatus.DELIVERED,
+            currentUser.getId(),
+            "Delivery OTP verified"
+    );
+
+
+    /*
+     * =====================================================
+     * STEP 10
+     * Existing partner completion logic.
+     *
+     * DO NOT move/increment this again in Part 24.
+     * =====================================================
+     */
+
+    DeliveryPartner partner =
+            assignment.getPartner();
+
+    partner.setAvailabilityStatus(
+            DeliveryPartnerAvailabilityStatus.AVAILABLE
+    );
+
+    Integer totalDeliveries =
+            partner.getTotalDeliveries();
+
+    partner.setTotalDeliveries(
+            totalDeliveries == null
+                    ? 1
+                    : totalDeliveries + 1
+    );
+
+    partnerRepository.save(
+            partner
+    );
+
+
+    /*
+     * =====================================================
+     * STEP 11
+     * NEW PART 24 INTEGRATION.
+     *
+     * Existing OTP + state machine is already completed.
+     *
+     * Now finalize:
+     *
+     * assignment
+     * order
+     * payout
+     * completion record
+     * =====================================================
+     */
+
+    deliveryFinalizationService.finalizeDelivery(
+            assignment.getId(),
+            currentUser.getId()
+    );
+
+
+    /*
+     * =====================================================
+     * STEP 12
+     * Existing customer notification.
+     *
+     * Keep it exactly once.
+     * =====================================================
+     */
+
+    notificationService.createNotification(
+            assignment
+                    .getDeliveryRequest()
+                    .getCustomer()
+                    .getId(),
+
+            "Order Delivered",
+
+            "Your order has been delivered successfully.",
+
+            "DELIVERED",
+
+            "DELIVERY_ASSIGNMENT",
+
+            assignmentId
+    );
+
+
+    /*
+     * =====================================================
+     * STEP 13
+     * Return normal assignment response.
+     * =====================================================
+     */
+
+    return mapToResponse(
+            assignment
+    );
+}
     // =========================================================
     // 10. GET MY ASSIGNMENT (current delivery partner)
     // =========================================================
