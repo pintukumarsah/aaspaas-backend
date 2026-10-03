@@ -2,9 +2,7 @@ package com.aaspaas.aaspaas_backend.delivery.repository;
 
 import com.aaspaas.aaspaas_backend.delivery.entity.PartnerPayout;
 import jakarta.persistence.LockModeType;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
@@ -16,19 +14,21 @@ public interface PartnerPayoutRepository
             Long deliveryAssignmentId
     );
 
-    Optional<PartnerPayout> findByDeliveryAssignmentId(
+    Optional<PartnerPayout>
+    findByDeliveryAssignmentId(
             Long deliveryAssignmentId
     );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
-        SELECT pp
-        FROM PartnerPayout pp
-        JOIN FETCH pp.partner p
-        JOIN FETCH pp.deliveryAssignment da
+        SELECT p
+        FROM PartnerPayout p
+        JOIN FETCH p.deliveryAssignment da
+        JOIN FETCH p.partner partner
         WHERE da.id = :assignmentId
-    """)
-    Optional<PartnerPayout> findByDeliveryAssignmentIdForUpdate(
+        """)
+    Optional<PartnerPayout>
+    findByDeliveryAssignmentIdForUpdate(
             @Param("assignmentId") Long assignmentId
     );
 }

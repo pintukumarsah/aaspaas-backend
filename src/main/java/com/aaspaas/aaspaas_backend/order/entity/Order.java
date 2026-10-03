@@ -134,7 +134,17 @@ public class Order {
 
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
+@Column(name = "cancelled_at")
+private OffsetDateTime cancelledAt;
 
+@Column(name = "cancelled_by")
+private Long cancelledBy;
+
+@Column(
+        name = "cancellation_reason",
+        length = 500
+)
+private String cancellationReason;
     @PrePersist
     protected void onCreate() {
 

@@ -53,6 +53,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/products/*/images").hasAnyRole("SELLER", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/products/*/images/**").hasAnyRole("SELLER", "ADMIN")
 
+                        // PAYMENT WEBHOOK - Razorpay calls this without JWT.
+                        // Signature verification is performed inside the webhook service.
+                        .requestMatchers("/api/payments/webhook/razorpay").permitAll()
+
+                        // PAYMENTS
+                        .requestMatchers("/api/payments/**").authenticated()
+
                         // CART
                         .requestMatchers("/api/cart/**").authenticated()
 

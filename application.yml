@@ -1,9 +1,48 @@
+# jwt:
+#   secret: "CHANGE_THIS_TO_A_LONG_RANDOM_SECRET_KEY_AT_LEAST_32_CHARACTERS"
+#   access-token-expiration: 7200000
+#   refresh-token-expiration: 6048000000
+
+#   aaspaas:
+#   websocket:
+#     allowed-origins:
+#       - http://localhost:4200
+#       - http://localhost:8100
+
+# app:
+#   otp:
+#     expiry-minutes: 60
+#     development-mode: true
+
+#         # development-mode: true  ---production ke liye false hoga
+
+
+
+#   #     aaspaas:
+#   # websocket:
+#   #   allowed-origins:
+#   #     - http://localhost:4200
+#   #     - http://localhost:8100
+
+
+# # payment:
+# #   razorpay:
+# #     key-id: ${RAZORPAY_KEY_ID}
+# #     key-secret: ${RAZORPAY_KEY_SECRET}
+# #     webhook-secret: ${RAZORPAY_WEBHOOK_SECRET}
+# #     base-url: https://api.razorpay.com/v1
+
+# payment:
+#   razorpay:
+#     key-id: ${RAZORPAY_KEY_ID:rzp_test_dummyKey}
+#     key-secret: ${RAZORPAY_KEY_SECRET:dummySecret}
+
 jwt:
   secret: "CHANGE_THIS_TO_A_LONG_RANDOM_SECRET_KEY_AT_LEAST_32_CHARACTERS"
   access-token-expiration: 7200000
   refresh-token-expiration: 6048000000
 
-  aaspaas:
+aaspaas:
   websocket:
     allowed-origins:
       - http://localhost:4200
@@ -14,12 +53,9 @@ app:
     expiry-minutes: 60
     development-mode: true
 
-        # development-mode: true  ---production ke liye false hoga
-
-
-
-  #     aaspaas:
-  # websocket:
-  #   allowed-origins:
-  #     - http://localhost:4200
-  #     - http://localhost:8100
+payment:
+  razorpay:
+    key-id: ${RAZORPAY_KEY_ID:rzp_test_dummyKey}
+    key-secret: ${RAZORPAY_KEY_SECRET:dummySecret}
+    webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:dummyWebhookSecret}
+    base-url: https://api.razorpay.com/v1
