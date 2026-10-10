@@ -1,5 +1,6 @@
 package com.aaspaas.aaspaas_backend.delivery.serviceimpl;
 
+import com.aaspaas.aaspaas_backend.common.exception.BusinessException;
 import com.aaspaas.aaspaas_backend.delivery.dto.CreateDeliveryPartnerRequest;
 import com.aaspaas.aaspaas_backend.delivery.dto.DeliveryPartnerResponse;
 import com.aaspaas.aaspaas_backend.delivery.dto.PartnerRouteUpdateRequest;
@@ -107,6 +108,12 @@ public class DeliveryPartnerServiceImpl
             );
         }
 
+        if (!"APPROVED".equals(partner.getVerificationStatus())
+                && newStatus != DeliveryPartnerAvailabilityStatus.OFFLINE) {
+            throw new BusinessException(
+                    "Delivery partner must be approved before becoming available", 409);
+        }
+
         partner.setAvailabilityStatus(newStatus);
 
         /*
@@ -136,6 +143,11 @@ public class DeliveryPartnerServiceImpl
                                         "Delivery partner profile not found"
                                 )
                         );
+
+        if (!"APPROVED".equals(partner.getVerificationStatus())) {
+            throw new BusinessException(
+                    "Delivery partner must be approved before publishing a route", 409);
+        }
 
         if (partner.getAvailabilityStatus() != DeliveryPartnerAvailabilityStatus.AVAILABLE) {
             throw new RuntimeException(
