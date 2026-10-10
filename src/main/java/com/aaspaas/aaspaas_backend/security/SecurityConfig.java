@@ -84,6 +84,12 @@ public class SecurityConfig {
                                                 .requestMatchers("/api/delivery/matching/**").authenticated()
                                                 .requestMatchers("/api/delivery/routes/**").authenticated()
                                                 .requestMatchers("/api/delivery/quotes/**").authenticated()
+                                                .requestMatchers(
+        "/swagger-ui.html",
+        "/swagger-ui/**",
+        "/v3/api-docs",
+        "/v3/api-docs/**"
+).permitAll()
                                                 .requestMatchers("/api/admin/**")
                                                 .hasRole("ADMIN")
                                                 // DELIVERY PARTNER
