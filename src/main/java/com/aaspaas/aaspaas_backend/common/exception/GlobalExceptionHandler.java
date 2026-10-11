@@ -167,7 +167,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-
+import com.aaspaas.aaspaas_backend.common.idempotency.IdempotencyConflictException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -425,4 +428,17 @@ public class GlobalExceptionHandler {
 
         return message;
     }
+
+    @ExceptionHandler(IdempotencyConflictException.class)
+public ResponseEntity<?> handleIdempotencyConflict(
+        IdempotencyConflictException ex) {
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(
+            java.util.Map.of(
+                    "status", 409,
+                    "error", "Conflict",
+                    "code", "IDEMPOTENCY_CONFLICT",
+                    "message", ex.getMessage()
+            )
+    );
+}
 }

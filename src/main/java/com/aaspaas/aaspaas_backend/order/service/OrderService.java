@@ -1,3 +1,33 @@
+// package com.aaspaas.aaspaas_backend.order.service;
+
+// import com.aaspaas.aaspaas_backend.order.dto.CreateOrderRequest;
+// import com.aaspaas.aaspaas_backend.order.dto.OrderResponse;
+
+// import java.util.List;
+
+// public interface OrderService {
+
+// //     OrderResponse createOrder(
+// //             CreateOrderRequest request,
+// //             String authenticatedPhone
+// //     );
+
+//     OrderResponse createOrder(
+//         CreateOrderRequest request,
+//         String authenticatedPhone,
+//         String idempotencyKey
+// );
+
+//     OrderResponse getMyOrder(
+//             Long orderId,
+//             String authenticatedPhone
+//     );
+
+//     List<OrderResponse> getMyOrders(
+//             String authenticatedPhone
+//     );
+// }
+
 package com.aaspaas.aaspaas_backend.order.service;
 
 import com.aaspaas.aaspaas_backend.order.dto.CreateOrderRequest;
@@ -9,7 +39,8 @@ public interface OrderService {
 
     OrderResponse createOrder(
             CreateOrderRequest request,
-            String authenticatedPhone
+            String authenticatedPhone,
+            String idempotencyKey
     );
 
     OrderResponse getMyOrder(

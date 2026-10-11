@@ -149,6 +149,7 @@ public class SecurityConfig {
     private final RestAccessDeniedHandler restAccessDeniedHandler;
 
     private final ApiRateLimitFilter apiRateLimitFilter;
+    
 
     @Bean
     public SecurityFilterChain securityFilterChain(
