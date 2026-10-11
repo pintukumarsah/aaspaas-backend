@@ -46,7 +46,11 @@ public class CorsConfig {
                 "Idempotency-Key"
         ));
 
-        configuration.setExposedHeaders(List.of("Location"));
+        // configuration.setExposedHeaders(List.of("Location"));
+        configuration.setExposedHeaders(List.of(
+        "Location",
+        "X-Correlation-ID"
+));
 
         // Required only if your frontend needs credentialed cross-origin requests.
         // Never combine allowCredentials=true with allowedOrigins="*".

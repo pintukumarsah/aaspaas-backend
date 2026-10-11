@@ -148,6 +148,8 @@ public class SecurityConfig {
 
     private final RestAccessDeniedHandler restAccessDeniedHandler;
 
+    private final ApiRateLimitFilter apiRateLimitFilter;
+
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
@@ -318,10 +320,19 @@ public class SecurityConfig {
                 .authenticationProvider(authenticationProvider)
 
                 // JWT FILTER
+                // .addFilterBefore(
+                //         jwtAuthenticationFilter,
+                //         UsernamePasswordAuthenticationFilter.class
+                // );
+
                 .addFilterBefore(
-                        jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class
-                );
+        apiRateLimitFilter,
+        UsernamePasswordAuthenticationFilter.class
+)
+.addFilterBefore(
+        jwtAuthenticationFilter,
+        UsernamePasswordAuthenticationFilter.class
+);
 
         return http.build();
     }
