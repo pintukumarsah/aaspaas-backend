@@ -393,7 +393,15 @@ public class SecurityConfig {
 
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
-
+.requestMatchers(
+                "/v3/api-docs/**",
+                "/v3/api-docs",
+                "/swagger-ui/**",
+                "/swagger-ui.html",
+                "/swagger-ui/index.html",
+                "/swagger-resources/**",
+                "/webjars/**"
+            ).permitAll()
                         // NEW: provider webhooks carry no JWT; authenticity is the HMAC signature
                         // verified inside the services.
                         .requestMatchers("/api/payments/webhook/razorpay").permitAll()
