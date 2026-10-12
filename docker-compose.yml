@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: aaspaas-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: aaspaas_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mysecretpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - aaspaas-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: aaspaas-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
+    networks:
+      - aaspaas-net
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: aaspaas-backend
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "9090:9090"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/aaspaas_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: mysecretpassword
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      APP_RATE_LIMIT_ENABLED: "true"
+      APP_RATE_LIMIT_REDIS_FAIL_OPEN: "true"
+    networks:
+      - aaspaas-net
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  aaspaas-net:
+    driver: bridge

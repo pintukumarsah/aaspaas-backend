@@ -19,7 +19,17 @@ import com.aaspaas.aaspaas_backend.payment.repository.PaymentRepository;
 import com.aaspaas.aaspaas_backend.payment.service.PaymentService;
 import com.aaspaas.aaspaas_backend.user.entity.User;
 import com.aaspaas.aaspaas_backend.user.repository.UserRepository;
-
+import com.aaspaas.aaspaas_backend.common.idempotency.IdempotencyConflictException;
+import com.aaspaas.aaspaas_backend.common.idempotency.IdempotencyRecord;
+import com.aaspaas.aaspaas_backend.common.idempotency.IdempotencyRecordRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -38,7 +48,11 @@ public class PaymentServiceImpl
 
 
     private final PaymentRepository paymentRepository;
+private final IdempotencyRecordRepository idempotencyRecordRepository;
+    private final ObjectMapper objectMapper;
 
+    @PersistenceContext
+    private EntityManager entityManager;
     private final PaymentRefundRepository
             paymentRefundRepository;
 
@@ -1297,5 +1311,67 @@ public class PaymentServiceImpl
                         payment.getCreatedAt()
                 )
                 .build();
+    }
+
+   @Override
+    @Transactional
+    public PaymentResponse createPaymentWithIdempotency(CreatePaymentRequest request, String userPhone, String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            return createPayment(request, userPhone);
+        }
+
+        String endpoint = "POST:/api/payments/create";
+        String lockKey = userPhone + "|" + endpoint + "|" + idempotencyKey;
+
+        // PostgreSQL Transaction-level Advisory Lock
+        entityManager.createNativeQuery("SELECT pg_advisory_xact_lock(hashtextextended(?1, 0))")
+                .setParameter(1, lockKey)
+                .getSingleResult();
+
+        String requestHash = calculateRequestHash(request);
+
+        var existing = idempotencyRecordRepository.findByCustomerPhoneAndEndpointAndIdempotencyKey(
+                userPhone, endpoint, idempotencyKey
+        );
+
+        if (existing.isPresent()) {
+            IdempotencyRecord record = existing.get();
+            if (!MessageDigest.isEqual(
+                    record.getRequestHash().getBytes(StandardCharsets.UTF_8),
+                    requestHash.getBytes(StandardCharsets.UTF_8))) {
+                throw new IdempotencyConflictException("This Idempotency-Key was already used with a different request.");
+            }
+            try {
+                return objectMapper.readValue(record.getResponseBody(), PaymentResponse.class);
+            } catch (JsonProcessingException ex) {
+                throw new IllegalStateException("Stored payment response could not be read.", ex);
+            }
+        }
+
+        PaymentResponse response = createPayment(request, userPhone);
+
+        try {
+            IdempotencyRecord record = new IdempotencyRecord();
+            record.setCustomerPhone(userPhone);
+            record.setEndpoint(endpoint);
+            record.setIdempotencyKey(idempotencyKey);
+            record.setRequestHash(requestHash);
+            record.setResponseStatus(201);
+            record.setResponseBody(objectMapper.writeValueAsString(response));
+            idempotencyRecordRepository.saveAndFlush(record);
+            return response;
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to serialize payment response", ex);
+        }
+    }
+
+    private String calculateRequestHash(CreatePaymentRequest request) {
+        try {
+            byte[] bytes = objectMapper.writeValueAsBytes(request);
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
+            return HexFormat.of().formatHex(digest);
+        } catch (JsonProcessingException | NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("Could not calculate fingerprint", ex);
+        }
     }
 }

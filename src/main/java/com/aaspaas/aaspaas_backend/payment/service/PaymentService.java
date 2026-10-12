@@ -54,4 +54,6 @@ public interface PaymentService {
             Long orderId,
             String reason
     );
+
+    PaymentResponse createPaymentWithIdempotency(CreatePaymentRequest request, String userPhone, String idempotencyKey);
 }
