@@ -16,18 +16,44 @@
 // }
 // }
 
+// package com.aaspaas.aaspaas_backend.common.exception;
+// import lombok.Getter;
+// @Getter
+// public class BusinessException extends RuntimeException {
+
+//     private int status = 400; // default bad request
+
+//     // 1-argument constructor (already exists)
+//     public BusinessException(String message) {
+//         super(message);
+//     }
+
+//     // YEH ADD KAREIN: 2-argument constructor (String, int)
+//     public BusinessException(String message, int status) {
+//         super(message);
+//         this.status = status;
+//     }
+
+//     public int getStatus() {
+//         return status;
+//     }
+    
+// }
+
 package com.aaspaas.aaspaas_backend.common.exception;
 
+import lombok.Getter;
+import org.springframework.http.HttpStatus;
+
+@Getter
 public class BusinessException extends RuntimeException {
 
-    private int status = 400; // default bad request
+    private int status = 400;
 
-    // 1-argument constructor (already exists)
     public BusinessException(String message) {
         super(message);
     }
 
-    // YEH ADD KAREIN: 2-argument constructor (String, int)
     public BusinessException(String message, int status) {
         super(message);
         this.status = status;
@@ -35,5 +61,9 @@ public class BusinessException extends RuntimeException {
 
     public int getStatus() {
         return status;
+    }
+
+    public HttpStatus getStatusCode() {
+        return HttpStatus.resolve(status) != null ? HttpStatus.resolve(status) : HttpStatus.BAD_REQUEST;
     }
 }

@@ -59,3 +59,26 @@ payment:
     key-secret: ${RAZORPAY_KEY_SECRET:dummySecret}
     webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:dummyWebhookSecret}
     base-url: https://api.razorpay.com/v1
+
+
+# # Wallet / payouts
+# wallet.bank-encryption-key=${BANK_ENCRYPTION_KEY}
+# payout.provider=razorpayx
+# payout.razorpayx.key-id=${RAZORPAYX_KEY_ID}
+# payout.razorpayx.key-secret=${RAZORPAYX_KEY_SECRET}
+# payout.razorpayx.account-number=${RAZORPAYX_ACCOUNT_NUMBER}
+# payout.razorpayx.webhook-secret=${RAZORPAYX_WEBHOOK_SECRET}
+
+# # Payments
+# payment.razorpay.key-id=${RAZORPAY_KEY_ID}
+# payment.razorpay.key-secret=${RAZORPAY_KEY_SECRET}
+# payment.razorpay.webhook-secret=${RAZORPAY_WEBHOOK_SECRET}
+
+# # CORS: only your real HTTPS frontends
+# app.cors.allowed-origins=${CORS_ORIGINS}
+
+# # Redis
+# spring.data.redis.host=${REDIS_HOST}
+# spring.data.redis.port=${REDIS_PORT:6379}
+# spring.data.redis.password=${REDIS_PASSWORD:}
+# app.redis.enabled=true
